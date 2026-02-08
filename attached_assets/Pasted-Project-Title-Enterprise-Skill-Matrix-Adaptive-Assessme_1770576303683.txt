@@ -1,0 +1,69 @@
+Project Title: Enterprise Skill Matrix & Adaptive Assessment Platform
+
+Objective: Build a full-stack internal corporate application to track and level-up developer skills across various tech stacks and project components.
+
+Core Tech Stack:
+
+Backend: Java 17+ with Spring Boot (Spring Security, Spring Data JPA).
+
+Frontend: React with TypeScript and Tailwind CSS.
+
+Database: PostgreSQL for production; H2 (In-memory) for unit testing.
+
+DevOps: Dockerize the application. Externalize database credentials via a file path defined in an environment variable.
+
+1. Data Model & Hierarchy:
+
+Organization: Team -> Project -> Component/Tech Stack.
+
+Users & RBAC:
+
+Root: First registered user. Can invite other Roots and Team Admins.
+
+Team Admin: Manages specific projects, uploads questions, and invites Developers.
+
+Developer: Belongs to projects, takes assessments, views personal history.
+
+Assessments:
+
+Questions: Tagged by Tech Stack/Component and Difficulty Level (1-10).
+
+Format: Multiple Choice (MCQ) and Fill-in-the-blanks.
+
+Levels: Developers progress from Level 1 to 10. Higher levels require more in-depth questions.
+
+2. Key Functional Requirements:
+
+Onboarding: First-time login requires email verification via a secret code. After code entry, users set a password and a security question/answer. Include a password reset flow (via security questions or Admin override).
+
+The Assessment Engine:
+
+Developers can only take a "Next Level" test if invited by a Team Admin.
+
+Tests are graded automatically for MCQs. If a test contains complex answers, it enters a "Pending Admin Review" state for manual grading.
+
+Admins set a "Pass Mark" threshold for each level.
+
+Dashboards:
+
+Admin Dashboard: Group questions by category. View a bird's-eye view of team ratings. Clicking a developer shows a drill-down of component ratings, historical progress, and a "Trajectory Timeline" (time taken to level up).
+
+Developer Dashboard: View active invites, current skill levels per component, and a full history of past attempts.
+
+3. Specific Implementation Instructions:
+
+External Config: The app must read application.properties or a JSON config for DB credentials from a path defined by the environment variable EXTERNAL_CONFIG_PATH.
+
+Testing: Ensure the backend service is modular and uses an in-memory database for JUnit/Mockito tests.
+
+UI: Use a clean, professional corporate UI. Implement a timeline visualization for developer growth.
+
+Suggested Architecture Overview
+To help you visualize how the AI will likely structure the data to meet your "Level 1-10" requirement:
+
+Why this structure works:
+Scalability: By linking Developers to Projects and Projects to Components, you can easily track a developer who is a "Level 8" in Java on Project A, but only a "Level 3" in React on Project B.
+
+Security: The "Root User" logic ensures you don't need a hardcoded admin password in your source code, which is a major security plus.
+
+Persistence: Using Postgres ensures that as your company grows, the data remains robust, while the in-memory DB keeps your CI/CD pipeline fast.
