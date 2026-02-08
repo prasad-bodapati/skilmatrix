@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { clearToken } from './api'
+import { setToken, clearToken } from './api'
 import Login from './components/Login'
 import Register from './components/Register'
 import VerifyEmail from './components/VerifyEmail'
