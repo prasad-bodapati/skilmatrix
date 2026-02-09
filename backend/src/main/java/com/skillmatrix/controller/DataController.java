@@ -277,6 +277,143 @@ public class DataController {
         return ResponseEntity.ok(dashboard);
     }
 
+    @GetMapping("/dashboard/skills-matrix")
+    public ResponseEntity<?> getSkillsMatrix() {
+        List<DeveloperLevel> allLevels = levelRepo.findAll();
+        List<Team> allTeams = teamRepo.findAll();
+
+        List<Map<String, Object>> byComponent = new ArrayList<>();
+        Map<Long, List<DeveloperLevel>> levelsByComponent = allLevels.stream()
+                .collect(Collectors.groupingBy(l -> l.getComponent().getId()));
+        for (Map.Entry<Long, List<DeveloperLevel>> entry : levelsByComponent.entrySet()) {
+            List<DeveloperLevel> levels = entry.getValue();
+            Component comp = levels.get(0).getComponent();
+            Map<String, Object> cm = new HashMap<>();
+            cm.put("componentId", comp.getId());
+            cm.put("componentName", comp.getName());
+            cm.put("techStack", comp.getTechStack());
+            cm.put("projectName", comp.getProject().getName());
+            cm.put("projectId", comp.getProject().getId());
+            cm.put("teamName", comp.getProject().getTeam().getName());
+            cm.put("teamId", comp.getProject().getTeam().getId());
+            cm.put("developers", levels.stream().map(l -> {
+                Map<String, Object> dm = new HashMap<>();
+                dm.put("developerId", l.getDeveloper().getId());
+                dm.put("developerName", l.getDeveloper().getFullName());
+                dm.put("email", l.getDeveloper().getEmail());
+                dm.put("level", l.getCurrentLevel());
+                dm.put("lastLevelUpAt", l.getLastLevelUpAt());
+                return dm;
+            }).sorted((a, b) -> Integer.compare((int) b.get("level"), (int) a.get("level")))
+            .collect(Collectors.toList()));
+            byComponent.add(cm);
+        }
+        byComponent.sort(Comparator.comparing(m -> (String) m.get("componentName")));
+
+        List<Map<String, Object>> byProject = new ArrayList<>();
+        Map<Long, List<DeveloperLevel>> levelsByProject = allLevels.stream()
+                .collect(Collectors.groupingBy(l -> l.getComponent().getProject().getId()));
+        for (Map.Entry<Long, List<DeveloperLevel>> entry : levelsByProject.entrySet()) {
+            List<DeveloperLevel> levels = entry.getValue();
+            Project proj = levels.get(0).getComponent().getProject();
+            Map<String, Object> pm = new HashMap<>();
+            pm.put("projectId", proj.getId());
+            pm.put("projectName", proj.getName());
+            pm.put("teamName", proj.getTeam().getName());
+            pm.put("teamId", proj.getTeam().getId());
+
+            Map<Long, Map<String, Object>> devMap = new LinkedHashMap<>();
+            for (DeveloperLevel l : levels) {
+                Long devId = l.getDeveloper().getId();
+                Map<String, Object> dm = devMap.computeIfAbsent(devId, k -> {
+                    Map<String, Object> d = new HashMap<>();
+                    d.put("developerId", devId);
+                    d.put("developerName", l.getDeveloper().getFullName());
+                    d.put("email", l.getDeveloper().getEmail());
+                    d.put("skills", new ArrayList<Map<String, Object>>());
+                    d.put("totalLevel", 0);
+                    d.put("skillCount", 0);
+                    return d;
+                });
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> skills = (List<Map<String, Object>>) dm.get("skills");
+                Map<String, Object> skill = new HashMap<>();
+                skill.put("componentName", l.getComponent().getName());
+                skill.put("techStack", l.getComponent().getTechStack());
+                skill.put("level", l.getCurrentLevel());
+                skills.add(skill);
+                dm.put("totalLevel", (int) dm.get("totalLevel") + l.getCurrentLevel());
+                dm.put("skillCount", (int) dm.get("skillCount") + 1);
+            }
+            List<Map<String, Object>> devList = new ArrayList<>(devMap.values());
+            for (Map<String, Object> d : devList) {
+                int total = (int) d.get("totalLevel");
+                int count = (int) d.get("skillCount");
+                d.put("averageLevel", Math.round((double) total / count * 10.0) / 10.0);
+                d.remove("totalLevel");
+                d.remove("skillCount");
+            }
+            devList.sort((a, b) -> Double.compare((double) b.get("averageLevel"), (double) a.get("averageLevel")));
+            pm.put("developers", devList);
+            byProject.add(pm);
+        }
+        byProject.sort(Comparator.comparing(m -> (String) m.get("projectName")));
+
+        List<Map<String, Object>> byTeam = new ArrayList<>();
+        for (Team team : allTeams) {
+            Map<String, Object> tm = new HashMap<>();
+            tm.put("teamId", team.getId());
+            tm.put("teamName", team.getName());
+
+            List<DeveloperLevel> teamLevels = allLevels.stream()
+                    .filter(l -> l.getComponent().getProject().getTeam().getId().equals(team.getId()))
+                    .collect(Collectors.toList());
+
+            Map<Long, Map<String, Object>> devMap = new LinkedHashMap<>();
+            for (DeveloperLevel l : teamLevels) {
+                Long devId = l.getDeveloper().getId();
+                Map<String, Object> dm = devMap.computeIfAbsent(devId, k -> {
+                    Map<String, Object> d = new HashMap<>();
+                    d.put("developerId", devId);
+                    d.put("developerName", l.getDeveloper().getFullName());
+                    d.put("email", l.getDeveloper().getEmail());
+                    d.put("skills", new ArrayList<Map<String, Object>>());
+                    d.put("totalLevel", 0);
+                    d.put("skillCount", 0);
+                    return d;
+                });
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> skills = (List<Map<String, Object>>) dm.get("skills");
+                Map<String, Object> skill = new HashMap<>();
+                skill.put("componentName", l.getComponent().getName());
+                skill.put("techStack", l.getComponent().getTechStack());
+                skill.put("projectName", l.getComponent().getProject().getName());
+                skill.put("level", l.getCurrentLevel());
+                skills.add(skill);
+                dm.put("totalLevel", (int) dm.get("totalLevel") + l.getCurrentLevel());
+                dm.put("skillCount", (int) dm.get("skillCount") + 1);
+            }
+            List<Map<String, Object>> devList = new ArrayList<>(devMap.values());
+            for (Map<String, Object> d : devList) {
+                int total = (int) d.get("totalLevel");
+                int count = (int) d.get("skillCount");
+                d.put("averageLevel", Math.round((double) total / count * 10.0) / 10.0);
+                d.remove("totalLevel");
+                d.remove("skillCount");
+            }
+            devList.sort((a, b) -> Double.compare((double) b.get("averageLevel"), (double) a.get("averageLevel")));
+            tm.put("developers", devList);
+            byTeam.add(tm);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("byComponent", byComponent);
+        result.put("byProject", byProject);
+        result.put("byTeam", byTeam);
+
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/dashboard/developer/{userId}")
     public ResponseEntity<?> getDeveloperDashboard(@PathVariable Long userId) {
         AppUser user = userRepo.findById(userId)

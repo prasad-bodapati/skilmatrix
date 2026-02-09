@@ -72,6 +72,10 @@ export async function getAdminDashboard() {
   return request('/dashboard/admin');
 }
 
+export async function getSkillsMatrix() {
+  return request('/dashboard/skills-matrix');
+}
+
 export async function getDeveloperDashboard(userId: number) {
   return request(`/dashboard/developer/${userId}`);
 }

@@ -10,6 +10,7 @@ import {
   getProjects,
   getComponents,
   getQuestions,
+  getSkillsMatrix,
   inviteUser,
   createAssessmentInvite,
   gradeAnswer,
@@ -18,7 +19,7 @@ import {
 export default function AdminDashboard() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [tab, setTab] = useState<'overview' | 'invite' | 'assessments' | 'reviews' | 'questions'>('overview')
+  const [tab, setTab] = useState<'overview' | 'skills' | 'invite' | 'assessments' | 'reviews' | 'questions'>('overview')
   const [dashboard, setDashboard] = useState<any>(null)
   const [pendingReviews, setPendingReviews] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
@@ -45,21 +46,27 @@ export default function AdminDashboard() {
   const [selectedProject, setSelectedProject] = useState<number>(0)
   const [selectedComponent, setSelectedComponent] = useState<number>(0)
 
+  const [skillsMatrix, setSkillsMatrix] = useState<any>(null)
+  const [skillsView, setSkillsView] = useState<'byComponent' | 'byProject' | 'byTeam'>('byComponent')
+  const [expandedSkillCard, setExpandedSkillCard] = useState<string | null>(null)
+
   const loadData = async () => {
     setLoading(true)
     try {
-      const [d, r, u, a, t] = await Promise.all([
+      const [d, r, u, a, t, sm] = await Promise.all([
         getAdminDashboard(),
         getPendingReviews(),
         getUsers(),
         getAssessments(),
         getTeams(),
+        getSkillsMatrix(),
       ])
       setDashboard(d)
       setPendingReviews(r)
       setUsers(u)
       setAssessments(a)
       setTeams(t)
+      setSkillsMatrix(sm)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -134,6 +141,7 @@ export default function AdminDashboard() {
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'skills', label: 'Skills Matrix' },
     { id: 'invite', label: 'Invite Users' },
     { id: 'assessments', label: 'Assessments' },
     { id: 'reviews', label: 'Pending Reviews' },
@@ -273,6 +281,229 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {tab === 'skills' && skillsMatrix && (
+          <div>
+            <div className="flex gap-2 mb-6">
+              {[
+                { id: 'byComponent', label: 'By Component' },
+                { id: 'byProject', label: 'By Project' },
+                { id: 'byTeam', label: 'By Team' },
+              ].map(v => (
+                <button
+                  key={v.id}
+                  onClick={() => { setSkillsView(v.id as any); setExpandedSkillCard(null) }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
+                    skillsView === v.id ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+
+            {skillsView === 'byComponent' && (
+              <div className="space-y-4">
+                {skillsMatrix.byComponent?.map((comp: any) => (
+                  <div key={comp.componentId} className="bg-white rounded-xl border border-slate-200">
+                    <button
+                      onClick={() => setExpandedSkillCard(expandedSkillCard === `c-${comp.componentId}` ? null : `c-${comp.componentId}`)}
+                      className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition cursor-pointer text-left"
+                    >
+                      <div>
+                        <h3 className="font-semibold text-slate-900">{comp.componentName}</h3>
+                        <p className="text-sm text-slate-500 mt-0.5">{comp.techStack} &middot; {comp.projectName} &middot; {comp.teamName}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                          {comp.developers?.length || 0} developer{comp.developers?.length !== 1 ? 's' : ''}
+                        </span>
+                        <svg className={`w-4 h-4 text-slate-400 transition ${expandedSkillCard === `c-${comp.componentId}` ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+                    {expandedSkillCard === `c-${comp.componentId}` && (
+                      <div className="px-5 pb-4 border-t border-slate-100">
+                        <table className="w-full mt-3">
+                          <thead>
+                            <tr className="border-b border-slate-200">
+                              <th className="text-left py-2 text-sm font-medium text-slate-600">Developer</th>
+                              <th className="text-left py-2 text-sm font-medium text-slate-600">Email</th>
+                              <th className="text-left py-2 text-sm font-medium text-slate-600">Level</th>
+                              <th className="text-left py-2 text-sm font-medium text-slate-600">Proficiency</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {comp.developers?.map((dev: any) => (
+                              <tr key={dev.developerId}>
+                                <td className="py-2.5 text-sm font-medium text-slate-900">{dev.developerName}</td>
+                                <td className="py-2.5 text-sm text-slate-500">{dev.email}</td>
+                                <td className="py-2.5">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                                    L{dev.level}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 w-40">
+                                  <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-indigo-500 rounded-full"
+                                      style={{ width: `${(dev.level / 10) * 100}%` }}
+                                    />
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {(!skillsMatrix.byComponent || skillsMatrix.byComponent.length === 0) && (
+                  <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+                    <p className="text-slate-400">No skill data available yet</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {skillsView === 'byProject' && (
+              <div className="space-y-4">
+                {skillsMatrix.byProject?.map((proj: any) => (
+                  <div key={proj.projectId} className="bg-white rounded-xl border border-slate-200">
+                    <button
+                      onClick={() => setExpandedSkillCard(expandedSkillCard === `p-${proj.projectId}` ? null : `p-${proj.projectId}`)}
+                      className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition cursor-pointer text-left"
+                    >
+                      <div>
+                        <h3 className="font-semibold text-slate-900">{proj.projectName}</h3>
+                        <p className="text-sm text-slate-500 mt-0.5">Team: {proj.teamName}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium bg-violet-100 text-violet-800">
+                          {proj.developers?.length || 0} developer{proj.developers?.length !== 1 ? 's' : ''}
+                        </span>
+                        <svg className={`w-4 h-4 text-slate-400 transition ${expandedSkillCard === `p-${proj.projectId}` ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+                    {expandedSkillCard === `p-${proj.projectId}` && (
+                      <div className="px-5 pb-4 border-t border-slate-100">
+                        <div className="mt-3 space-y-4">
+                          {proj.developers?.map((dev: any) => (
+                            <div key={dev.developerId} className="bg-slate-50 rounded-lg p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <div>
+                                  <span className="font-medium text-slate-900">{dev.developerName}</span>
+                                  <span className="text-slate-400 ml-2 text-sm">{dev.email}</span>
+                                </div>
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                                  Avg L{dev.averageLevel}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {dev.skills?.map((skill: any, i: number) => (
+                                  <div key={i} className="flex items-center gap-3">
+                                    <div className="flex-1">
+                                      <div className="flex justify-between text-sm mb-1">
+                                        <span className="text-slate-700">{skill.componentName}</span>
+                                        <span className="text-slate-500">L{skill.level}</span>
+                                      </div>
+                                      <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                                        <div
+                                          className="h-full bg-violet-500 rounded-full"
+                                          style={{ width: `${(skill.level / 10) * 100}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                    <span className="text-xs text-slate-400 w-16 text-right">{skill.techStack}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {(!skillsMatrix.byProject || skillsMatrix.byProject.length === 0) && (
+                  <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+                    <p className="text-slate-400">No skill data available yet</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {skillsView === 'byTeam' && (
+              <div className="space-y-4">
+                {skillsMatrix.byTeam?.map((team: any) => (
+                  <div key={team.teamId} className="bg-white rounded-xl border border-slate-200">
+                    <button
+                      onClick={() => setExpandedSkillCard(expandedSkillCard === `t-${team.teamId}` ? null : `t-${team.teamId}`)}
+                      className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition cursor-pointer text-left"
+                    >
+                      <div>
+                        <h3 className="font-semibold text-slate-900">{team.teamName}</h3>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-800">
+                          {team.developers?.length || 0} developer{team.developers?.length !== 1 ? 's' : ''}
+                        </span>
+                        <svg className={`w-4 h-4 text-slate-400 transition ${expandedSkillCard === `t-${team.teamId}` ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+                    {expandedSkillCard === `t-${team.teamId}` && (
+                      <div className="px-5 pb-4 border-t border-slate-100">
+                        <div className="mt-3 space-y-4">
+                          {team.developers?.map((dev: any) => (
+                            <div key={dev.developerId} className="bg-slate-50 rounded-lg p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <div>
+                                  <span className="font-medium text-slate-900">{dev.developerName}</span>
+                                  <span className="text-slate-400 ml-2 text-sm">{dev.email}</span>
+                                </div>
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                                  Avg L{dev.averageLevel}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {dev.skills?.map((skill: any, i: number) => (
+                                  <div key={i} className="flex items-center gap-3">
+                                    <div className="flex-1">
+                                      <div className="flex justify-between text-sm mb-1">
+                                        <span className="text-slate-700">{skill.componentName}</span>
+                                        <span className="text-slate-500">L{skill.level}</span>
+                                      </div>
+                                      <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                                        <div
+                                          className="h-full bg-emerald-500 rounded-full"
+                                          style={{ width: `${(skill.level / 10) * 100}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                    <span className="text-xs text-slate-400 w-20 text-right">{skill.projectName}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                          {(!team.developers || team.developers.length === 0) && (
+                            <p className="text-sm text-slate-400 py-2">No developers with skills in this team yet</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
