@@ -9,6 +9,7 @@ import ResetPassword from './components/ResetPassword'
 import AdminDashboard from './components/AdminDashboard'
 import DeveloperDashboard from './components/DeveloperDashboard'
 import TakeAssessment from './components/TakeAssessment'
+import MyProfile from './components/MyProfile'
 
 interface User {
   userId: number
@@ -90,6 +91,14 @@ export default function App() {
           element={
             <ProtectedRoute roles={['DEVELOPER']}>
               <DeveloperDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <MyProfile />
             </ProtectedRoute>
           }
         />

@@ -36,6 +36,7 @@ frontend/
       AdminDashboard.tsx - Admin dashboard with team ratings, invites, reviews
       DeveloperDashboard.tsx - Developer dashboard with skills, history, timeline
       TakeAssessment.tsx - Assessment taking interface
+      MyProfile.tsx     - My Profile page (own assessments, skills, timeline)
 ```
 
 ## Running the Application
@@ -64,6 +65,11 @@ frontend/
 - POST /api/assessments/submit/{attemptId} - Submit assessment
 
 ## Recent Changes
+- 2026-02-09: Added My Profile page (/profile)
+  - Accessible to all authenticated users (any role)
+  - Shows user info, assessment history table, skill levels, growth timeline
+  - Profile button added to Admin and Developer dashboard headers
+  - Back button to return to appropriate dashboard
 - 2026-02-08: Initial build of the complete platform
   - Full backend with Spring Boot, JPA entities, REST APIs, JWT auth
   - React frontend with admin/developer dashboards, assessment engine
