@@ -22,9 +22,18 @@ async function request(path: string, options: RequestInit = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  const data = await res.json();
+  const text = await res.text();
+  let data: any;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    if (!res.ok) {
+      throw new Error(`Server error (${res.status})`);
+    }
+    return {};
+  }
   if (!res.ok) {
-    throw new Error(data.error || 'Request failed');
+    throw new Error(data.error || data.message || 'Request failed');
   }
   return data;
 }
