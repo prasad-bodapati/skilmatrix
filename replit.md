@@ -65,6 +65,11 @@ frontend/
 - POST /api/assessments/submit/{attemptId} - Submit assessment
 
 ## Recent Changes
+- 2026-02-13: Redesigned Teams page in Admin Dashboard
+  - Teams shown as clickable cards with developer count and project count
+  - Click team to see developers list with search functionality
+  - Click developer to see component skills, assessment history, and send assessment invite
+  - Assessment invite has separate Component and Skill Level selectors
 - 2026-02-09: Added My Profile page (/profile)
   - Accessible to all authenticated users (any role)
   - Shows user info, assessment history table, skill levels, growth timeline

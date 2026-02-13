@@ -11,7 +11,8 @@ import {
   getComponents,
   getQuestions,
   getSkillsMatrix,
-  inviteUser,
+  getDeveloperDashboard,
+
   createAssessmentInvite,
   gradeAnswer,
 } from '../api'
@@ -33,15 +34,8 @@ export default function AdminDashboard() {
   const [pendingReviews, setPendingReviews] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [assessments, setAssessments] = useState<any[]>([])
-  const [selectedDev, setSelectedDev] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
-  const [invEmail, setInvEmail] = useState('')
-  const [invName, setInvName] = useState('')
-  const [invRole, setInvRole] = useState('DEVELOPER')
-  const [invProjectId, setInvProjectId] = useState<number>(0)
-  const [invMsg, setInvMsg] = useState('')
 
   const [aiDevId, setAiDevId] = useState<number>(0)
   const [aiAssessId, setAiAssessId] = useState<number>(0)
@@ -59,7 +53,15 @@ export default function AdminDashboard() {
   const [expandedSkillCard, setExpandedSkillCard] = useState<string | null>(null)
 
   const [projectsSubTab, setProjectsSubTab] = useState<'all' | 'skills' | 'questions'>('all')
-  const [teamsSubTab, setTeamsSubTab] = useState<'ratings' | 'members' | 'invite'>('ratings')
+  const [teamsView, setTeamsView] = useState<'list' | 'team' | 'developer'>('list')
+  const [selectedTeamData, setSelectedTeamData] = useState<any>(null)
+  const [selectedDevDetail, setSelectedDevDetail] = useState<any>(null)
+  const [selectedDevDashboard, setSelectedDevDashboard] = useState<any>(null)
+  const [devSearchQuery, setDevSearchQuery] = useState('')
+  const [loadingDevDetail, setLoadingDevDetail] = useState(false)
+  const [inviteComponent, setInviteComponent] = useState<number>(0)
+  const [inviteLevel, setInviteLevel] = useState<number>(0)
+  const [inviteMsg, setInviteMsg] = useState('')
   const [assessmentsSubTab, setAssessmentsSubTab] = useState<'list' | 'create' | 'reviews'>('list')
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -113,20 +115,6 @@ export default function AdminDashboard() {
     }
   }, [selectedComponent])
 
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setInvMsg('')
-    try {
-      await inviteUser(invEmail, invName, invRole, invProjectId)
-      setInvMsg('User invited successfully!')
-      setInvEmail('')
-      setInvName('')
-      loadData()
-    } catch (err: any) {
-      setInvMsg(`Error: ${err.message}`)
-    }
-  }
-
   const handleCreateInvite = async (e: React.FormEvent) => {
     e.preventDefault()
     setAiMsg('')
@@ -145,6 +133,62 @@ export default function AdminDashboard() {
       setPendingReviews(r)
     } catch (err: any) {
       alert(err.message)
+    }
+  }
+
+  const handleSelectTeam = (team: any) => {
+    setSelectedTeamData(team)
+    setTeamsView('team')
+    setDevSearchQuery('')
+    setSelectedDevDetail(null)
+    setSelectedDevDashboard(null)
+  }
+
+  const handleSelectDev = async (dev: any) => {
+    setSelectedDevDetail(dev)
+    setTeamsView('developer')
+    setLoadingDevDetail(true)
+    setInviteComponent(0)
+    setInviteLevel(0)
+    setInviteMsg('')
+    try {
+      const dd = await getDeveloperDashboard(dev.developerId)
+      setSelectedDevDashboard(dd)
+    } catch {
+      setSelectedDevDashboard(null)
+    } finally {
+      setLoadingDevDetail(false)
+    }
+  }
+
+  const handleTeamsBack = () => {
+    if (teamsView === 'developer') {
+      setTeamsView('team')
+      setSelectedDevDetail(null)
+      setSelectedDevDashboard(null)
+    } else {
+      setTeamsView('list')
+      setSelectedTeamData(null)
+    }
+  }
+
+  const handleSendAssessmentInvite = async () => {
+    if (!selectedDevDetail || !inviteComponent || !inviteLevel) return
+    setInviteMsg('')
+    const matchingAssessment = assessments.find(
+      (a: any) => a.componentId === inviteComponent && a.level === inviteLevel
+    )
+    if (!matchingAssessment) {
+      setInviteMsg('No assessment found for this component and level combination.')
+      return
+    }
+    try {
+      await createAssessmentInvite(selectedDevDetail.developerId, matchingAssessment.id)
+      setInviteMsg('Assessment invite sent successfully!')
+      setInviteComponent(0)
+      setInviteLevel(0)
+    } catch (err: any) {
+      setInviteMsg(`Error: ${err.message}`)
     }
   }
 
@@ -555,208 +599,301 @@ export default function AdminDashboard() {
 
             {tab === 'teams' && (
               <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-slate-900">Teams</h2>
-                  <div className="flex gap-1 bg-white rounded-lg p-1 border border-slate-200">
-                    {[
-                      { id: 'ratings', label: 'Ratings' },
-                      { id: 'members', label: 'Members' },
-                      { id: 'invite', label: 'Invite User' },
-                    ].map(st => (
-                      <button
-                        key={st.id}
-                        onClick={() => setTeamsSubTab(st.id as any)}
-                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition cursor-pointer ${
-                          teamsSubTab === st.id ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        {st.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {teamsSubTab === 'ratings' && dashboard && (
-                  <div className="bg-white rounded-xl border border-slate-200">
-                    {dashboard.teamRatings?.map((team: any) => (
-                      <div key={team.teamId} className="border-b border-slate-100 last:border-0">
-                        <div className="px-5 py-3 bg-slate-50">
-                          <h3 className="font-medium text-slate-800">{team.teamName}</h3>
-                        </div>
-                        {team.developers?.length > 0 ? (
-                          <div className="divide-y divide-slate-100">
-                            {team.developers.map((dev: any) => (
-                              <div key={dev.developerId}>
-                                <button
-                                  onClick={() => setSelectedDev(selectedDev?.developerId === dev.developerId ? null : dev)}
-                                  className="w-full px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition cursor-pointer text-left"
-                                >
-                                  <div>
-                                    <span className="font-medium text-slate-900">{dev.developerName}</span>
-                                    <span className="text-slate-400 ml-2 text-sm">{dev.email}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm text-slate-600">Avg Level:</span>
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
-                                      {dev.averageLevel}
-                                    </span>
-                                    <svg className={`w-4 h-4 text-slate-400 transition ${selectedDev?.developerId === dev.developerId ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                  </div>
-                                </button>
-                                {selectedDev?.developerId === dev.developerId && (
-                                  <div className="px-5 pb-4">
-                                    <div className="bg-slate-50 rounded-lg p-4">
-                                      <h4 className="text-sm font-medium text-slate-700 mb-3">Component Skills</h4>
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        {dev.skills?.map((skill: any, i: number) => (
-                                          <div key={i} className="flex items-center gap-3">
-                                            <div className="flex-1">
-                                              <div className="flex justify-between text-sm mb-1">
-                                                <span className="text-slate-700">{skill.component}</span>
-                                                <span className="text-slate-500">L{skill.level}</span>
-                                              </div>
-                                              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                                                <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${(skill.level / 10) * 100}%` }} />
-                                              </div>
-                                            </div>
-                                            <span className="text-xs text-slate-400 w-16 text-right">{skill.techStack}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
+                {teamsView === 'list' && (
+                  <div>
+                    <h2 className="text-xl font-semibold text-slate-900 mb-6">Teams</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {dashboard?.teamRatings?.map((team: any) => {
+                        const teamInfo = teams.find((t: any) => t.id === team.teamId)
+                        return (
+                          <button
+                            key={team.teamId}
+                            onClick={() => handleSelectTeam(team)}
+                            className="bg-white rounded-xl border border-slate-200 p-5 text-left hover:border-indigo-300 hover:shadow-md transition cursor-pointer group"
+                          >
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center group-hover:bg-indigo-200 transition">
+                                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
                               </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="px-5 py-3 text-sm text-slate-400">No developers with ratings yet</p>
-                        )}
-                      </div>
-                    ))}
+                              <svg className="w-5 h-5 text-slate-300 group-hover:text-indigo-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-slate-900 mb-1">{team.teamName}</h3>
+                            {teamInfo?.description && (
+                              <p className="text-sm text-slate-500 mb-4 line-clamp-2">{teamInfo.description}</p>
+                            )}
+                            <div className="flex items-center gap-4 pt-3 border-t border-slate-100">
+                              <div className="flex items-center gap-1.5">
+                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                <span className="text-sm font-medium text-slate-700">{team.developers?.length || 0}</span>
+                                <span className="text-sm text-slate-500">developers</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                </svg>
+                                <span className="text-sm font-medium text-slate-700">{teamInfo?.projectCount || 0}</span>
+                                <span className="text-sm text-slate-500">projects</span>
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 )}
 
-                {teamsSubTab === 'members' && skillsMatrix && (
-                  <div className="space-y-4">
-                    {skillsMatrix.byTeam?.map((team: any) => (
-                      <div key={team.teamId} className="bg-white rounded-xl border border-slate-200">
-                        <button
-                          onClick={() => setExpandedSkillCard(expandedSkillCard === `t-${team.teamId}` ? null : `t-${team.teamId}`)}
-                          className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition cursor-pointer text-left"
-                        >
-                          <div>
-                            <h3 className="font-semibold text-slate-900">{team.teamName}</h3>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-800">
-                              {team.developers?.length || 0} developer{team.developers?.length !== 1 ? 's' : ''}
-                            </span>
-                            <svg className={`w-4 h-4 text-slate-400 transition ${expandedSkillCard === `t-${team.teamId}` ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </div>
+                {teamsView === 'team' && selectedTeamData && (() => {
+                  const filteredDevs = (selectedTeamData.developers || []).filter((dev: any) => {
+                    if (!devSearchQuery) return true
+                    const q = devSearchQuery.toLowerCase()
+                    return dev.developerName?.toLowerCase().includes(q) || dev.email?.toLowerCase().includes(q)
+                  })
+                  return (
+                    <div>
+                      <div className="flex items-center gap-3 mb-6">
+                        <button onClick={handleTeamsBack} className="p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer">
+                          <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                          </svg>
                         </button>
-                        {expandedSkillCard === `t-${team.teamId}` && (
-                          <div className="px-5 pb-4 border-t border-slate-100">
-                            <div className="mt-3 space-y-4">
-                              {team.developers?.map((dev: any) => (
-                                <div key={dev.developerId} className="bg-slate-50 rounded-lg p-4">
-                                  <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h2 className="text-xl font-semibold text-slate-900">{selectedTeamData.teamName}</h2>
+                          <p className="text-sm text-slate-500">{filteredDevs.length} developer{filteredDevs.length !== 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
+
+                      <div className="mb-5">
+                        <div className="relative max-w-md">
+                          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                          <input
+                            type="text"
+                            placeholder="Search developers..."
+                            value={devSearchQuery}
+                            onChange={e => setDevSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-slate-900 bg-white text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {filteredDevs.length === 0 ? (
+                        <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+                          <p className="text-slate-400">No developers found matching your search.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {filteredDevs.map((dev: any) => (
+                            <button
+                              key={dev.developerId}
+                              onClick={() => handleSelectDev(dev)}
+                              className="bg-white rounded-xl border border-slate-200 p-4 text-left hover:border-indigo-300 hover:shadow-sm transition cursor-pointer group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                  {dev.developerName?.charAt(0) || '?'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-slate-900 truncate">{dev.developerName}</p>
+                                  <p className="text-sm text-slate-500 truncate">{dev.email}</p>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                                    Avg L{dev.averageLevel}
+                                  </span>
+                                  <svg className="w-4 h-4 text-slate-300 group-hover:text-indigo-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  </svg>
+                                </div>
+                              </div>
+                              {dev.skills?.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-1.5">
+                                  {dev.skills.slice(0, 4).map((skill: any, i: number) => (
+                                    <span key={i} className="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                                      {skill.component} L{skill.level}
+                                    </span>
+                                  ))}
+                                  {dev.skills.length > 4 && (
+                                    <span className="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-500">
+                                      +{dev.skills.length - 4} more
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {teamsView === 'developer' && selectedDevDetail && (
+                  <div>
+                    <div className="flex items-center gap-3 mb-6">
+                      <button onClick={handleTeamsBack} className="p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer">
+                        <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                      </button>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                          {selectedDevDetail.developerName?.charAt(0) || '?'}
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-semibold text-slate-900">{selectedDevDetail.developerName}</h2>
+                          <p className="text-sm text-slate-500">{selectedDevDetail.email}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {loadingDevDetail ? (
+                      <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+                        <p className="text-slate-500">Loading developer details...</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-900 mb-3">Component Skills</h3>
+                          {(selectedDevDashboard?.skillLevels || []).length === 0 ? (
+                            <div className="bg-white rounded-xl border border-slate-200 p-6 text-center">
+                              <p className="text-slate-400 text-sm">No skills recorded yet.</p>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {(selectedDevDashboard?.skillLevels || []).map((skill: any) => (
+                                <div key={skill.componentId} className="bg-white rounded-xl border border-slate-200 p-4">
+                                  <div className="flex items-center justify-between mb-2">
                                     <div>
-                                      <span className="font-medium text-slate-900">{dev.developerName}</span>
-                                      <span className="text-slate-400 ml-2 text-sm">{dev.email}</span>
+                                      <p className="font-medium text-slate-900 text-sm">{skill.componentName}</p>
+                                      <p className="text-xs text-slate-500">{skill.projectName} &middot; {skill.techStack}</p>
                                     </div>
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
-                                      Avg L{dev.averageLevel}
+                                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm">
+                                      {skill.currentLevel}
                                     </span>
                                   </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    {dev.skills?.map((skill: any, i: number) => (
-                                      <div key={i} className="flex items-center gap-3">
-                                        <div className="flex-1">
-                                          <div className="flex justify-between text-sm mb-1">
-                                            <span className="text-slate-700">{skill.componentName}</span>
-                                            <span className="text-slate-500">L{skill.level}</span>
-                                          </div>
-                                          <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(skill.level / 10) * 100}%` }} />
-                                          </div>
-                                        </div>
-                                        <span className="text-xs text-slate-400 w-16 text-right">{skill.techStack}</span>
-                                      </div>
-                                    ))}
+                                  <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${(skill.currentLevel / 10) * 100}%` }} />
+                                  </div>
+                                  <div className="flex justify-between mt-1">
+                                    <span className="text-xs text-slate-400">Level 0</span>
+                                    <span className="text-xs text-slate-400">Level 10</span>
                                   </div>
                                 </div>
                               ))}
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                          )}
+                        </div>
 
-                {teamsSubTab === 'invite' && (
-                  <div className="max-w-lg">
-                    <div className="bg-white rounded-xl border border-slate-200 p-6">
-                      <h3 className="text-lg font-semibold text-slate-900 mb-5">Invite a User</h3>
-                      {invMsg && (
-                        <div className={`mb-4 p-3 rounded-lg text-sm ${invMsg.startsWith('Error') ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'}`}>
-                          {invMsg}
-                        </div>
-                      )}
-                      <form onSubmit={handleInvite} className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-                          <input
-                            type="text"
-                            value={invName}
-                            onChange={e => setInvName(e.target.value)}
-                            required
-                            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-slate-900 bg-white"
-                          />
+                          <h3 className="text-lg font-semibold text-slate-900 mb-3">Assessment History</h3>
+                          {(selectedDevDashboard?.attemptHistory || []).length === 0 ? (
+                            <div className="bg-white rounded-xl border border-slate-200 p-6 text-center">
+                              <p className="text-slate-400 text-sm">No assessments taken yet.</p>
+                            </div>
+                          ) : (
+                            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                              <table className="w-full">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                  <tr>
+                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500 uppercase">Component</th>
+                                    <th className="px-4 py-2.5 text-center text-xs font-medium text-slate-500 uppercase">Level</th>
+                                    <th className="px-4 py-2.5 text-center text-xs font-medium text-slate-500 uppercase">Score</th>
+                                    <th className="px-4 py-2.5 text-center text-xs font-medium text-slate-500 uppercase">Result</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {(selectedDevDashboard?.attemptHistory || []).map((attempt: any) => (
+                                    <tr key={attempt.id} className="hover:bg-slate-50">
+                                      <td className="px-4 py-2.5">
+                                        <p className="text-sm font-medium text-slate-900">{attempt.componentName}</p>
+                                        <p className="text-xs text-slate-500">{attempt.techStack}</p>
+                                      </td>
+                                      <td className="px-4 py-2.5 text-center">
+                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs">
+                                          {attempt.level}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-2.5 text-center text-sm font-medium text-slate-700">
+                                        {attempt.score}/{attempt.totalQuestions}
+                                      </td>
+                                      <td className="px-4 py-2.5 text-center">
+                                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                          attempt.passed ? 'bg-emerald-100 text-emerald-700' : attempt.status === 'PENDING_REVIEW' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                                        }`}>
+                                          {attempt.passed ? 'Passed' : attempt.status === 'PENDING_REVIEW' ? 'Review' : 'Failed'}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-2.5 text-sm text-slate-600">
+                                        {attempt.startedAt ? new Date(attempt.startedAt).toLocaleDateString() : '-'}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
                         </div>
+
                         <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                          <input
-                            type="email"
-                            value={invEmail}
-                            onChange={e => setInvEmail(e.target.value)}
-                            required
-                            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-slate-900 bg-white"
-                          />
+                          <h3 className="text-lg font-semibold text-slate-900 mb-3">Send Assessment Invite</h3>
+                          <div className="bg-white rounded-xl border border-slate-200 p-5">
+                            {inviteMsg && (
+                              <div className={`mb-4 p-3 rounded-lg text-sm ${inviteMsg.startsWith('Error') ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'}`}>
+                                {inviteMsg}
+                              </div>
+                            )}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Component</label>
+                                <select
+                                  value={inviteComponent}
+                                  onChange={e => { setInviteComponent(Number(e.target.value)); setInviteLevel(0) }}
+                                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-slate-900 bg-white text-sm"
+                                >
+                                  <option value={0}>Select component...</option>
+                                  {Array.from(new Map(assessments.map((a: any) => [a.componentId, { id: a.componentId, name: a.componentName, techStack: a.techStack }])).values()).map((comp: any) => (
+                                    <option key={comp.id} value={comp.id}>{comp.name} ({comp.techStack})</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Skill Level</label>
+                                <select
+                                  value={inviteLevel}
+                                  onChange={e => setInviteLevel(Number(e.target.value))}
+                                  disabled={!inviteComponent}
+                                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-slate-900 bg-white text-sm disabled:bg-slate-100 disabled:text-slate-400"
+                                >
+                                  <option value={0}>Select level...</option>
+                                  {assessments
+                                    .filter((a: any) => a.componentId === inviteComponent)
+                                    .sort((a: any, b: any) => a.level - b.level)
+                                    .map((a: any) => (
+                                      <option key={a.id} value={a.level}>Level {a.level}</option>
+                                    ))
+                                  }
+                                </select>
+                              </div>
+                            </div>
+                            <button
+                              onClick={handleSendAssessmentInvite}
+                              disabled={!inviteComponent || !inviteLevel}
+                              className="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition cursor-pointer disabled:bg-slate-300 disabled:cursor-not-allowed"
+                            >
+                              Send Invite
+                            </button>
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
-                          <select
-                            value={invRole}
-                            onChange={e => setInvRole(e.target.value)}
-                            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-slate-900 bg-white"
-                          >
-                            <option value="DEVELOPER">Developer</option>
-                            <option value="TEAM_ADMIN">Team Admin</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Project ID</label>
-                          <input
-                            type="number"
-                            value={invProjectId || ''}
-                            onChange={e => setInvProjectId(Number(e.target.value))}
-                            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-slate-900 bg-white"
-                          />
-                        </div>
-                        <button
-                          type="submit"
-                          className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition cursor-pointer"
-                        >
-                          Send Invite
-                        </button>
-                      </form>
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
