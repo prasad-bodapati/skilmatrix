@@ -105,6 +105,18 @@ export async function getQuestions(componentId: number) {
   return request(`/components/${componentId}/questions`);
 }
 
+export async function getAllComponents() {
+  return request('/components/all');
+}
+
+export async function createQuestion(data: { componentId: number; questionText: string; type: string; difficultyLevel: number; correctAnswer: string; options?: string[] }) {
+  return request('/questions', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function createAssessmentLevel(data: { componentId: number; level: number; passMarkPercentage?: number; numberOfQuestions?: number }) {
+  return request('/assessments/create', { method: 'POST', body: JSON.stringify(data) });
+}
+
 export async function getUsers() {
   return request('/users');
 }

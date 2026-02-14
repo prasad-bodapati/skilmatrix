@@ -414,6 +414,97 @@ public class DataController {
         return ResponseEntity.ok(result);
     }
 
+    @GetMapping("/components/all")
+    public ResponseEntity<?> getAllComponents() {
+        List<Component> allComponents = componentRepo.findAll();
+        List<Map<String, Object>> result = allComponents.stream().map(c -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", c.getId());
+            m.put("name", c.getName());
+            m.put("techStack", c.getTechStack());
+            m.put("description", c.getDescription());
+            m.put("projectId", c.getProject().getId());
+            m.put("projectName", c.getProject().getName());
+            m.put("teamName", c.getProject().getTeam().getName());
+            List<Question> qs = questionRepo.findByComponentId(c.getId());
+            m.put("questionCount", qs.size());
+            List<Integer> levels = qs.stream().map(Question::getDifficultyLevel).distinct().sorted().collect(Collectors.toList());
+            m.put("levelsAvailable", levels);
+            m.put("levelCount", levels.size());
+            List<Assessment> assessments = assessmentRepo.findAll().stream()
+                    .filter(a -> a.getComponent().getId().equals(c.getId()))
+                    .collect(Collectors.toList());
+            m.put("assessmentLevels", assessments.stream().map(a -> {
+                Map<String, Object> am = new HashMap<>();
+                am.put("id", a.getId());
+                am.put("level", a.getLevel());
+                am.put("passMarkPercentage", a.getPassMarkPercentage());
+                am.put("numberOfQuestions", a.getNumberOfQuestions());
+                return am;
+            }).sorted(Comparator.comparingInt(a -> (int) a.get("level"))).collect(Collectors.toList()));
+            return m;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/questions")
+    public ResponseEntity<?> createQuestion(@RequestBody Map<String, Object> body) {
+        Long componentId = Long.valueOf(body.get("componentId").toString());
+        Component component = componentRepo.findById(componentId)
+                .orElseThrow(() -> new RuntimeException("Component not found"));
+        Question q = new Question();
+        q.setQuestionText(body.get("questionText").toString());
+        q.setType(Question.QuestionType.valueOf(body.get("type").toString()));
+        q.setDifficultyLevel(Integer.parseInt(body.get("difficultyLevel").toString()));
+        q.setComponent(component);
+        q.setCorrectAnswer(body.get("correctAnswer").toString());
+        if (body.containsKey("options") && body.get("options") != null) {
+            @SuppressWarnings("unchecked")
+            List<String> options = (List<String>) body.get("options");
+            q.setOptions(options);
+        }
+        Question saved = questionRepo.save(q);
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", saved.getId());
+        result.put("questionText", saved.getQuestionText());
+        result.put("type", saved.getType().name());
+        result.put("difficultyLevel", saved.getDifficultyLevel());
+        result.put("componentId", saved.getComponent().getId());
+        result.put("correctAnswer", saved.getCorrectAnswer());
+        result.put("options", saved.getOptions());
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/assessments/create")
+    public ResponseEntity<?> createAssessmentLevel(@RequestBody Map<String, Object> body) {
+        Long componentId = Long.valueOf(body.get("componentId").toString());
+        Component component = componentRepo.findById(componentId)
+                .orElseThrow(() -> new RuntimeException("Component not found"));
+        int level = Integer.parseInt(body.get("level").toString());
+        int passMarkPercentage = body.containsKey("passMarkPercentage") ? Integer.parseInt(body.get("passMarkPercentage").toString()) : 70;
+        int numberOfQuestions = body.containsKey("numberOfQuestions") ? Integer.parseInt(body.get("numberOfQuestions").toString()) : 10;
+        List<Assessment> existing = assessmentRepo.findAll().stream()
+                .filter(a -> a.getComponent().getId().equals(componentId) && a.getLevel() == level)
+                .collect(Collectors.toList());
+        if (!existing.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "An assessment for this component at level " + level + " already exists."));
+        }
+        Assessment a = new Assessment();
+        a.setComponent(component);
+        a.setLevel(level);
+        a.setPassMarkPercentage(passMarkPercentage);
+        a.setNumberOfQuestions(numberOfQuestions);
+        Assessment saved = assessmentRepo.save(a);
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", saved.getId());
+        result.put("componentId", saved.getComponent().getId());
+        result.put("componentName", saved.getComponent().getName());
+        result.put("level", saved.getLevel());
+        result.put("passMarkPercentage", saved.getPassMarkPercentage());
+        result.put("numberOfQuestions", saved.getNumberOfQuestions());
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/dashboard/developer/{userId}")
     public ResponseEntity<?> getDeveloperDashboard(@PathVariable Long userId) {
         AppUser user = userRepo.findById(userId)
