@@ -23,7 +23,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd /home/runner/workspace/backend && mvn spring-boot:run -DskipTests > /tmp/backend.log 2>&1 & cd /home/runner/workspace/frontend && exec npm run dev"
+args = "cd /home/runner/workspace/backend && JAVA_HOME=$(dirname $(dirname $(which java))) ./gradlew bootRun -x test > /tmp/backend.log 2>&1 & cd /home/runner/workspace/frontend && exec npm run dev"
 waitForPort = 5000
 
 [[ports]]

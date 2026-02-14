@@ -4,10 +4,11 @@
 Full-stack internal corporate application to track and level-up developer skills across tech stacks and project components. Features role-based access control (Root, Team Admin, Developer), assessment engine with levels 1-10, and dashboards with timeline visualization.
 
 ## Tech Stack
-- **Backend**: Java 17+ with Spring Boot 3.1, Spring Security (JWT), Spring Data JPA
+- **Backend**: Java 21 with Spring Boot 4.0.2 (Spring Framework 7, Spring Security 7, Hibernate 7), Spring Data JPA
 - **Frontend**: React 18 with TypeScript, Tailwind CSS, React Router
 - **Database**: PostgreSQL (Replit built-in)
-- **Build**: Maven (backend), Vite (frontend)
+- **Build**: Gradle 8.14.2 (backend), Vite (frontend)
+- **JWT**: JJWT 0.13.0 with Gson serializer
 
 ## Project Structure
 ```
@@ -65,6 +66,13 @@ frontend/
 - POST /api/assessments/submit/{attemptId} - Submit assessment
 
 ## Recent Changes
+- 2026-02-14: Upgraded to Spring Boot 4.0.2, JDK 21, Gradle
+  - Migrated from Maven to Gradle (build.gradle + Gradle wrapper)
+  - Upgraded Spring Boot 3.1.5 → 4.0.2 (Spring Framework 7, Spring Security 7, Hibernate 7.2.1)
+  - Upgraded JDK 19 → JDK 21
+  - Upgraded JJWT 0.11.5 → 0.13.0 with new builder API (subject(), issuedAt(), expiration(), signWith(), parser(), parseSignedClaims(), getPayload())
+  - Switched from jjwt-jackson to jjwt-gson for Jackson 3 compatibility
+  - Removed explicit Hibernate dialect (auto-detected in Hibernate 7)
 - 2026-02-13: Redesigned Teams page in Admin Dashboard
   - Teams shown as clickable cards with developer count and project count
   - Click team to see developers list with search functionality
