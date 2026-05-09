@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+.progress-journey-root {
+  font-family: 'Outfit', sans-serif;
+  --bg-app: 240 25% 10%;
+  --bg-card: 240 25% 14%;
+  --bg-sidebar: 240 30% 12%;
+  
+  --primary-accent: 260 100% 65%; /* Indigo/Purple */
+  --warm-highlight: 30 100% 60%; /* Warm Orange/Gold */
+  --warm-highlight-glow: 30 100% 60% 0.4;
+  
+  --text-main: 0 0% 95%;
+  --text-muted: 240 10% 65%;
+  
+  --border-subtle: 240 20% 25%;
+  
+  background-color: hsl(var(--bg-app));
+  color: hsl(var(--text-main));
+  min-height: 100vh;
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 10px 0 hsla(var(--warm-highlight), 0.4), inset 0 0 5px 0 hsla(var(--warm-highlight), 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px hsla(var(--warm-highlight), 0.6), inset 0 0 10px 2px hsla(var(--warm-highlight), 0.6);
+  }
+  100% {
+    box-shadow: 0 0 10px 0 hsla(var(--warm-highlight), 0.4), inset 0 0 5px 0 hsla(var(--warm-highlight), 0.4);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2.5s infinite ease-in-out;
+}
+
+@keyframes track-fill {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.animate-track-fill {
+  animation: track-fill 1.5s ease-out forwards;
+}
+
+/* Scrollbar customization */
+.progress-journey-root ::-webkit-scrollbar {
+  width: 8px;
+}
+.progress-journey-root ::-webkit-scrollbar-track {
+  background: hsla(var(--bg-app), 1);
+}
+.progress-journey-root ::-webkit-scrollbar-thumb {
+  background: hsla(var(--border-subtle), 1);
+  border-radius: 4px;
+}
+.progress-journey-root ::-webkit-scrollbar-thumb:hover {
+  background: hsla(var(--primary-accent), 1);
+}
