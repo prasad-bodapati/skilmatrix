@@ -35,7 +35,7 @@ frontend/
       SetPassword.tsx - Password setup with security question
       ResetPassword.tsx - Password reset flow
       AdminDashboard.tsx - Admin dashboard with team ratings, invites, reviews
-      DeveloperDashboard.tsx - Developer dashboard with skills, history, timeline
+      DeveloperDashboard.tsx - Developer dashboard — cockpit/mission-control UI with SVG gauges, telemetry stats, subsystem logs table
       TakeAssessment.tsx - Assessment taking interface
       MyProfile.tsx     - My Profile page (own assessments, skills, timeline)
 ```
@@ -66,6 +66,13 @@ frontend/
 - POST /api/assessments/submit/{attemptId} - Submit assessment
 
 ## Recent Changes
+- 2026-05-09: Redesigned Developer Dashboard with cockpit/mission-control UI
+  - Dark theme (#050505 background, #39ff14 neon green accent, monospace fonts)
+  - My Skills tab: 3 animated SVG circular gauges per skill, 4-cell stat bar, subsystem logs table
+  - All tabs (Invites, History, Timeline) restyled to match cockpit aesthetic
+  - "Execute Scan" button navigates to first pending assessment invite
+  - Operator name derived from real user account; overall readiness % calculated from skill levels
+  - Added lucide-react icon library; cockpit.css with CSS variables and gauge animation
 - 2026-02-14: Upgraded to Spring Boot 4.0.2, JDK 21, Gradle
   - Migrated from Maven to Gradle (build.gradle + Gradle wrapper)
   - Upgraded Spring Boot 3.1.5 → 4.0.2 (Spring Framework 7, Spring Security 7, Hibernate 7.2.1)
